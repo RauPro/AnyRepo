@@ -1,5 +1,5 @@
 # AnyRepo
 
 - Raul Ernesto Guillen Hernandez
-- Fernando Daniel Batarse
+- Fernando Daniel González Batarsé
 - Aleksandr Zvonarev

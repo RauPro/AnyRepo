@@ -9,6 +9,7 @@ from data.community_id import community_id
 
 
 class OurCommunity(Community):
+    memory = {}
     community_id = community_id
 
     def __init__(self, settings: CommunitySettings) -> None:
@@ -58,6 +59,12 @@ class OurCommunity(Community):
                 f"Local peer {self.my_peer.mid.hex()[:8]} received invalid message from {peer.mid.hex()[:8]}: {payload}"
             )
             return
+
+        self.memory[peer.mid.hex()] = payload.nonce
+
+        print(f"Local peer {self.my_peer.mid.hex()[:8]} memory state:")
+        for peer_id, nonce in self.memory.items():
+            print(f"  - Peer {peer_id[:8]}: {nonce}")
 
         print(
             f"Local peer {self.my_peer.mid.hex()[:8]} received valid message from {peer.mid.hex()[:8]}: {payload}"

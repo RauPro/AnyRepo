@@ -53,7 +53,7 @@ class OurCommunity(Community):
         )
 
         if not self._verify_signature(
-            BinMemberAuthenticationPayload(payload.public_key), payload.nonce
+            BinMemberAuthenticationPayload(payload.public_key), payload.signature
         ):
             print(
                 f"Local peer {self.my_peer.mid.hex()[:8]} received invalid message from {peer.mid.hex()[:8]}: {payload}"

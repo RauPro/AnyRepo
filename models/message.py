@@ -4,6 +4,6 @@ from ipv8.keyvault.keys import PublicKey
 
 @dataclass(msg_id=1)
 class Message:
-    public_key: PublicKey
+    public_key: bytes
     signature: bytes
     nonce: bytes

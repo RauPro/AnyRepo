@@ -2,6 +2,7 @@ from ipv8.community import Community, CommunitySettings
 from ipv8.peer import Peer
 from ipv8.lazy_community import lazy_wrapper
 from ipv8.keyvault.crypto import ECCrypto
+from ipv8.messaging.payload_headers import BinMemberAuthenticationPayload
 
 from models.message import Message
 from data.community_id import community_id
@@ -30,7 +31,7 @@ class OurCommunity(Community):
 
         data = b"hello world!"
 
-        public_key = self.my_peer.public_key
+        public_key = self.my_peer.public_key.key_to_bin()
         private_key = self.my_peer.key
 
         crypto = ECCrypto()
@@ -45,13 +46,19 @@ class OurCommunity(Community):
         )
 
     @lazy_wrapper(Message)
-    def on_message(self, peer: Peer, payload) -> None:
+    def on_message(self, peer: Peer, payload: Message) -> None:
         print(
             f"Local peer {self.my_peer.mid.hex()[:8]} received message from {peer.mid.hex()[:8]}: {payload}"
         )
 
-        if not self._verify_signature(payload.signature, payload.public_key):
+        if not self._verify_signature(
+            BinMemberAuthenticationPayload(payload.public_key), payload.nonce
+        ):
             print(
                 f"Local peer {self.my_peer.mid.hex()[:8]} received invalid message from {peer.mid.hex()[:8]}: {payload}"
             )
             return
+
+        print(
+            f"Local peer {self.my_peer.mid.hex()[:8]} received valid message from {peer.mid.hex()[:8]}: {payload}"
+        )

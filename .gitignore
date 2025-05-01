@@ -1,3 +1,4 @@
 .qodo
 .venv
 *.pem
+__pycache__/

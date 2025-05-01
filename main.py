@@ -14,7 +14,7 @@ async def start_communities() -> None:
     for i in [1, 2, 3]:
         builder = ConfigBuilder().clear_keys().clear_overlays()
 
-        builder.add_key("my peer", "medium", f"ec{i}.pem")
+        builder.add_key("my peer", "medium", f"keys/ec{i}.pem")
 
         builder.add_overlay(
             "OurCommunity",

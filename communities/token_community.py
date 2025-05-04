@@ -186,6 +186,25 @@ class TokenCommunity(Community):
                 print(
                     f"!! Sniper detected new token listing, sending SwapTx to buy 10 {payload.token_b} (using {payload.token_a})")
 
+    @lazy_wrapper(SwapTx)
+    def on_swap_tx(self, peer, payload: SwapTx):
+        """Handle incoming SwapTx: add to mempool and trigger sniper bot if large trade."""
+        self.mempool.append(payload)
+        print(
+            f"[Mempool] Pending swap by {payload.trader}: {payload.amount_in} {payload.from_token} -> {payload.to_token}")
+        # Sniper reaction: detect large swap and front-run
+        if self.role == "sniper":
+            if payload.trader != "sniper" and payload.from_token == "TokenA" and payload.to_token == "TokenB":
+                # Define a threshold for "large" trade (e.g., >30 of TokenA)
+                if payload.amount_in >= 30:
+                    # Sniper attempts to front-run by also buying TokenB before the large trade
+                    front_run_tx = SwapTx(trader="sniper", from_token=payload.from_token, to_token=payload.to_token,
+                                          amount_in=10)
+                    self.mempool.append(front_run_tx)
+                    for p in self.get_peers():
+                        self.ez_send(p, front_run_tx)
+                    print(
+                        f"!! Sniper detected large swap of {payload.amount_in} {payload.from_token}, broadcasting its own SwapTx of 10 to front-run")
 
 
 

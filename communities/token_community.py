@@ -63,3 +63,12 @@ class TokenCommunity(Community):
 
     # --- Message sending helper methods (for user/whale actions) ---
 
+    def send_add_liquidity(self):
+        """User role: broadcast an AddLiquidityTx to introduce initial liquidity to the pool."""
+        tx = AddLiquidityTx(provider="user", token_a="TokenA", amount_a=100, token_b="TokenB", amount_b=100)
+        # Add to own mempool and send to peers
+        self.mempool.append(tx)
+        for peer in self.get_peers():
+            self.ez_send(peer, tx)
+        print("* User adding liquidity: 100 TokenA and 100 TokenB (broadcast AddLiquidityTx)")
+

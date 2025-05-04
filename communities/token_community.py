@@ -71,4 +71,11 @@ class TokenCommunity(Community):
         for peer in self.get_peers():
             self.ez_send(peer, tx)
         print("* User adding liquidity: 100 TokenA and 100 TokenB (broadcast AddLiquidityTx)")
+    def send_whale_swap(self):
+        """Whale role: broadcast a large SwapTx (TokenA -> TokenB) to simulate a big trade."""
+        tx = SwapTx(trader="whale", from_token="TokenA", to_token="TokenB", amount_in=50)
+        self.mempool.append(tx)
+        for peer in self.get_peers():
+            self.ez_send(peer, tx)
+        print(f"* Whale swapping {tx.amount_in} {tx.from_token} for {tx.to_token} (broadcast SwapTx)")
 

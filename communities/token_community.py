@@ -206,5 +206,59 @@ class TokenCommunity(Community):
                     print(
                         f"!! Sniper detected large swap of {payload.amount_in} {payload.from_token}, broadcasting its own SwapTx of 10 to front-run")
 
-
+    @lazy_wrapper(BlockMessage)
+    def on_block_message(self, peer, payload: BlockMessage):
+        """Handle incoming BlockMessage: verify and apply the new block to local chain."""
+        # Basic block validation: check previous hash matches our latest block
+        if payload.prev_hash != self.chain[-1].hash:
+            print("!!! Received block with invalid prev_hash, ignoring.")
+            return
+        # Construct Block from message (for record)
+        block = Block(index=payload.index, prev_hash=payload.prev_hash,
+                      timestamp=payload.timestamp, transactions=[])
+        block.hash = payload.block_hash
+        # Deserialize transactions and apply them to ledger/pool
+        tx_list = json.loads(payload.tx_data)
+        for tx in tx_list:
+            if tx["type"] == "transfer":
+                # Apply transfer
+                if tx["amount"] <= self.ledger[tx["sender"]][tx["token"]]:
+                    self.ledger[tx["sender"]][tx["token"]] -= tx["amount"]
+                    self.ledger[tx["recipient"]][tx["token"]] += tx["amount"]
+            elif tx["type"] == "add_liquidity":
+                # Apply liquidity addition
+                provider = tx["provider"]
+                ta, tb = tx["token_a"], tx["token_b"]
+                a_in, b_in = tx["amount_a"], tx["amount_b"]
+                self.ledger[provider][ta] -= a_in
+                self.ledger[provider][tb] -= b_in
+                self.pool_reserves[ta] += a_in
+                self.pool_reserves[tb] += b_in
+                print(f"-> Pool updated (liquidity added) reserves: {self.pool_reserves}")
+            elif tx["type"] == "swap":
+                # Apply swap outcome
+                trader = tx["trader"];
+                token_in = tx["from_token"];
+                token_out = tx["to_token"];
+                amt_in = tx["amount_in"]
+                # Compute output similarly to mining logic
+                if amt_in <= self.ledger[trader][token_in]:
+                    self.ledger[trader][token_in] -= amt_in
+                    X = self.pool_reserves[token_in] + amt_in
+                    Y = self.pool_reserves[token_out]
+                    k = self.pool_reserves[token_in] * self.pool_reserves[token_out] if self.pool_reserves[
+                                                                                            token_in] and \
+                                                                                        self.pool_reserves[
+                                                                                            token_out] else 0
+                    Y_new = (k / X) if X and k else 0
+                    output_amount = Y - Y_new
+                    self.pool_reserves[token_in] = X
+                    self.pool_reserves[token_out] = Y_new
+                    self.ledger[trader][token_out] += output_amount
+                    print(f"-> {trader} swap applied: {amt_in} {token_in} -> {output_amount:.2f} {token_out}")
+        # Append the block to local chain
+        self.chain.append(block)
+        # Clear applied transactions from mempool
+        self.mempool.clear()
+        print(f"*** Block {payload.index} added to chain. Current ledger balances: {self.ledger}")
 

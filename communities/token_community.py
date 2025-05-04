@@ -159,4 +159,13 @@ class TokenCommunity(Community):
         print(
             f"*** Mined Block {new_block.index} with {len(ordered_txs)} transaction(s), broadcasting to network...")
 
+        # --- Message Handlers for incoming messages ---
+
+        @lazy_wrapper(TransferTx)
+        def on_transfer_tx(self, peer, payload: TransferTx):
+            """Handle incoming TransferTx: add to mempool."""
+            self.mempool.append(payload)
+            print(
+                f"[Mempool] Received transfer of {payload.amount} {payload.token} from {payload.sender} to {payload.recipient}")
+
 

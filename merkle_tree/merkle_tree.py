@@ -1,0 +1,2 @@
+class MerkleTree:
+    pass

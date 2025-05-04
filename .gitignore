@@ -1,1 +1,5 @@
 .qodo
+.venv
+*.pem
+__pycache__/
+.idea

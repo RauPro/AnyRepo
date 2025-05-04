@@ -79,3 +79,84 @@ class TokenCommunity(Community):
             self.ez_send(peer, tx)
         print(f"* Whale swapping {tx.amount_in} {tx.from_token} for {tx.to_token} (broadcast SwapTx)")
 
+        # --- Mining logic (for miner role) ---
+
+        def mine_block(self):
+            """Miner role: package pending transactions into a new block and broadcast it."""
+            if not self.mempool:
+                return  # nothing to include
+            # Order transactions: ensure AddLiquidity comes before Swaps, and sniper's swaps get priority
+            add_liqs = [tx for tx in self.mempool if isinstance(tx, AddLiquidityTx)]
+            others = [tx for tx in self.mempool if not isinstance(tx, AddLiquidityTx)]
+            # Sort others so that any SwapTx from sniper is placed before others (simulating front-run)
+            others.sort(key=lambda tx: 0 if (hasattr(tx, "trader") and tx.trader == "sniper") else 1)
+            ordered_txs = add_liqs + others
+            # Create new Block
+            prev_block = self.chain[-1]
+            new_index = prev_block.index + 1
+            new_block = Block(index=new_index, prev_hash=prev_block.hash, timestamp=time.time(),
+                              transactions=ordered_txs)
+            new_block.compute_hash()
+            # Apply each transaction to update ledger and pool state
+            for tx in ordered_txs:
+                if isinstance(tx, TransferTx):
+                    # Simple token transfer
+                    if tx.amount <= self.ledger[tx.sender][tx.token]:
+                        self.ledger[tx.sender][tx.token] -= tx.amount
+                        self.ledger[tx.recipient][tx.token] += tx.amount
+                elif isinstance(tx, AddLiquidityTx):
+                    # Liquidity added: deduct from provider and add to pool reserves
+                    if tx.amount_a <= self.ledger[tx.provider][tx.token_a] and tx.amount_b <= self.ledger[tx.provider][
+                        tx.token_b]:
+                        self.ledger[tx.provider][tx.token_a] -= tx.amount_a
+                        self.ledger[tx.provider][tx.token_b] -= tx.amount_b
+                        self.pool_reserves[tx.token_a] += tx.amount_a
+                        self.pool_reserves[tx.token_b] += tx.amount_b
+                        print(f"-> Pool created with reserves: {self.pool_reserves}")
+                elif isinstance(tx, SwapTx):
+                    # Swap execution using constant product formula x*y=k
+                    token_in, token_out = tx.from_token, tx.to_token
+                    amount_in = tx.amount_in
+                    # Only execute if trader has enough balance
+                    if amount_in <= self.ledger[tx.trader][token_in] and self.pool_reserves[token_in] >= 0 and \
+                            self.pool_reserves[token_out] > 0:
+                        # Deduct input tokens from trader into pool
+                        self.ledger[tx.trader][token_in] -= amount_in
+                        X = self.pool_reserves[token_in] + amount_in  # new reserve of input token
+                        Y = self.pool_reserves[token_out]
+                        # Constant product invariant: X_new * Y_new = X_old * Y_old (k)
+                        # Solve for Y_new = k / X_new, then output = Y_old - Y_new
+                        if self.pool_reserves[token_in] == 0:
+                            # Edge case: if pool had 0 of input token (shouldn't happen for normal use)
+                            self.pool_reserves[token_in] = X
+                            output_amount = 0
+                        else:
+                            k = self.pool_reserves[token_in] * self.pool_reserves[token_out]
+                            Y_new = k / X
+                            output_amount = Y - Y_new
+                            # Update pool reserves
+                            self.pool_reserves[token_in] = X
+                            self.pool_reserves[token_out] = Y_new
+                        # Credit output tokens to trader
+                        output_amount_int = output_amount  # can cast to int if desired
+                        self.ledger[tx.trader][token_out] += output_amount_int
+                        print(
+                            f"-> Swap executed for {tx.trader}: {amount_in} {token_in} -> {output_amount_int:.2f} {token_out}")
+            # Append the new block to chain
+            self.chain.append(new_block)
+            # Clear mempool (all pending transactions are now in this block)
+            self.mempool.clear()
+            # Broadcast the BlockMessage to other peers
+            block_data = [{"type": "transfer", **tx.__dict__} if isinstance(tx, TransferTx) else
+                          {"type": "add_liquidity", **tx.__dict__} if isinstance(tx, AddLiquidityTx) else
+                          {"type": "swap", **tx.__dict__}
+                          for tx in ordered_txs]
+            block_msg = BlockMessage(index=new_block.index, prev_hash=new_block.prev_hash,
+                                     timestamp=new_block.timestamp, block_hash=new_block.hash,
+                                     tx_data=json.dumps(block_data))
+            for peer in self.get_peers():
+                self.ez_send(peer, block_msg)
+            print(
+                f"*** Mined Block {new_block.index} with {len(ordered_txs)} transaction(s), broadcasting to network...")
+
+

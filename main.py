@@ -8,7 +8,7 @@ async def main():
     builders = []
     for i, role in enumerate(roles, start=1):
         builder = ConfigBuilder().clear_keys().clear_overlays()
-        builder.add_key("my peer", "medium", f"ec{i}.pem")
+        builder.add_key("my peer", "medium", f"keys/ec{i}.pem")
         builder.add_overlay("TokenCommunity", "my peer",
                             [WalkerDefinition(Strategy.RandomWalk, 10, {'timeout': 3.0})],
                             default_bootstrap_defs,

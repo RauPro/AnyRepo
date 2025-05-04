@@ -161,11 +161,31 @@ class TokenCommunity(Community):
 
         # --- Message Handlers for incoming messages ---
 
-        @lazy_wrapper(TransferTx)
-        def on_transfer_tx(self, peer, payload: TransferTx):
-            """Handle incoming TransferTx: add to mempool."""
-            self.mempool.append(payload)
-            print(
-                f"[Mempool] Received transfer of {payload.amount} {payload.token} from {payload.sender} to {payload.recipient}")
+    @lazy_wrapper(TransferTx)
+    def on_transfer_tx(self, peer, payload: TransferTx):
+        """Handle incoming TransferTx: add to mempool."""
+        self.mempool.append(payload)
+        print(
+            f"[Mempool] Received transfer of {payload.amount} {payload.token} from {payload.sender} to {payload.recipient}")
+
+    @lazy_wrapper(AddLiquidityTx)
+    def on_add_liquidity_tx(self, peer, payload: AddLiquidityTx):
+        """Handle incoming AddLiquidityTx: add to mempool and trigger sniper if applicable."""
+        self.mempool.append(payload)
+        print(
+            f"[Mempool] Pending AddLiquidity from {payload.provider}: {payload.amount_a}{payload.token_a} + {payload.amount_b}{payload.token_b}")
+        # Sniper reaction: if new pool listing detected (pool empty before), buy tokens
+        if self.role == "sniper":
+            # Check if pool was empty for this pair before (indicates a new token listing)
+            if self.pool_reserves[payload.token_a] == 0 or self.pool_reserves[payload.token_b] == 0:
+                # Sniper buys some of token_b using token_a
+                trade = SwapTx(trader="sniper", from_token=payload.token_a, to_token=payload.token_b, amount_in=10)
+                self.mempool.append(trade)
+                for p in self.get_peers():
+                    self.ez_send(p, trade)
+                print(
+                    f"!! Sniper detected new token listing, sending SwapTx to buy 10 {payload.token_b} (using {payload.token_a})")
+
+
 
 

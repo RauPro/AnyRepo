@@ -1,7 +1,6 @@
 from ipv8.community import Community, CommunitySettings
 from ipv8.peer import Peer
 from ipv8.lazy_community import lazy_wrapper
-from ipv8.keyvault.crypto import ECCrypto
 from ipv8.messaging.payload_headers import BinMemberAuthenticationPayload
 
 from models.message import Message
@@ -35,8 +34,7 @@ class OurCommunity(Community):
         public_key = self.my_peer.public_key.key_to_bin()
         private_key = self.my_peer.key
 
-        crypto = ECCrypto()
-        signature = crypto.create_signature(private_key, data)
+        signature = self.crypto.create_signature(private_key, data)
 
         async def start_communication() -> None:
             for p in self.get_peers():

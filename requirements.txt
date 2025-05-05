@@ -9,3 +9,4 @@ typing-extensions
 packaging
 apispec>=6.0.0
 pyipv8==2.12.0
+python-dotenv

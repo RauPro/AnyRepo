@@ -21,10 +21,7 @@ def initialize_uniswap_router(web3_instance: Web3):
         router["contract"] = web3_instance.eth.contract(
             address=ROUTER_CHECKSUM_ADDRESS, abi=router["abi"]
         )
-        print(
-            "✅ Successfully initialized Uniswap V2 Router contract at",
-            ROUTER_CHECKSUM_ADDRESS,
-        )
+        print("✅ Successfully initialized Uniswap V2 Router contract")
     except Exception as e:
         print("❌ Failed to initialize Uniswap V2 Router contract:", str(e))
 

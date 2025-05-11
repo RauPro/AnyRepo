@@ -34,7 +34,7 @@ async def main():
     swaps = await listener
 
     print(
-        f"\n🎯 Successfully captured {len(swaps)} router {'swap' if len(swaps) == 1 else 'swaps'}! 🚀"
+        f"🎯 Successfully captured {len(swaps)} router {'swap' if len(swaps) == 1 else 'swaps'}! 🚀"
     )
 
     swaps.sort(key=get_transaction_gas_price, reverse=True)

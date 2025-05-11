@@ -20,6 +20,8 @@ def establish_quicknode_http_connection():
         print("❌ Failed to connect to QuickNode HTTP endpoint at", QUICK_NODE_HTTP_URL)
         return web3_http
 
-    print("✔ Successfully connected to QuickNode HTTP endpoint at", QUICK_NODE_HTTP_URL)
+    print(
+        "✅ Successfully connected to QuickNode HTTP endpoint at", QUICK_NODE_HTTP_URL
+    )
 
     return web3_http

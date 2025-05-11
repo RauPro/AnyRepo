@@ -20,6 +20,6 @@ async def establish_quicknode_websocket_connection():
         print("❌ Failed to connect to QuickNode WSS endpoint at", QUICK_NODE_WSS_URL)
         return web3_wss
 
-    print("✔ Successfully connected to QuickNode WSS endpoint at", QUICK_NODE_WSS_URL)
+    print("✅ Successfully connected to QuickNode WSS endpoint at", QUICK_NODE_WSS_URL)
 
     return web3_wss

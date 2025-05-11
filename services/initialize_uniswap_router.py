@@ -22,7 +22,7 @@ def initialize_uniswap_router(web3_instance: Web3):
             address=ROUTER_CHECKSUM_ADDRESS, abi=router["abi"]
         )
         print(
-            "✔ Successfully initialized Uniswap V2 Router contract at",
+            "✅ Successfully initialized Uniswap V2 Router contract at",
             ROUTER_CHECKSUM_ADDRESS,
         )
     except Exception as e:

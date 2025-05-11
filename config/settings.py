@@ -2,6 +2,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from eth_account import Account
+from prettytable import PrettyTable
 from web3 import Web3
 
 load_dotenv()
@@ -36,3 +37,15 @@ CHAIN_ID = int(CHAIN_ID_NUMBER)
 ROUTER_CHECKSUM_ADDRESS = Web3.to_checksum_address(ROUTER_ADDRESS)
 
 ACCOUNT = Account.from_key(ACCOUNT_PRIVATE_KEY)
+
+t = PrettyTable(["Name", "Value"])
+t._max_width = {"Name": 50, "Value": 75}
+t.hrules = True
+t.add_row(["Account address", ACCOUNT.address])
+t.add_row(["Account private key", ACCOUNT_PRIVATE_KEY])
+t.add_row(["Quick Node HTTP URL", QUICK_NODE_HTTP_URL])
+t.add_row(["Quick Node WSS URL", QUICK_NODE_WSS_URL])
+t.add_row(["Chain ID", CHAIN_ID_NUMBER])
+t.add_row(["Router address", ROUTER_ADDRESS])
+
+print(t)

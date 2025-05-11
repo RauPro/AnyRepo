@@ -1,0 +1,13 @@
+SWAP_SELECTORS = {
+    b"\x7f\xf3j\xb5",
+    b"\xfb=\xdbA",
+    b"\x18\xcb\xaf\xe5",
+    b"J%\xd9J",
+    b"8\xed\x17\x39",
+    b"\x88\x03\xdb\xee",
+    b"\x04\xe4Z\xaf",
+    b"P#\xb4\xdf",
+    b"\xdb>!\x98",
+    b"\t\xb8\x13F",
+    b"5\x93VL",
+}

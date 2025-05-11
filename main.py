@@ -1,58 +1,23 @@
 import asyncio
 import json
-import os
 import random
-import sys
 import time
-from dotenv import load_dotenv
+from config import (
+    ACCOUNT_PRIVATE_KEY,
+    QUICK_NODE_HTTP_URL,
+    QUICK_NODE_WSS_URL,
+    CHAIN_ID_NUMBER,
+    ROUTER_ADDRESS,
+)
+from data.constants import SWAP_SELECTORS
 from eth_account import Account
 from eth_utils import to_hex
 from web3 import AsyncWeb3, HTTPProvider, Web3, WebSocketProvider
 
-load_dotenv()
-
-ACCOUNT_PRIVATE_KEY = os.getenv("ACCOUNT_PRIVATE_KEY")
-
-if not (ACCOUNT_PRIVATE_KEY):
-    sys.exit("🔑 Please add your private key to the .env file to continue!")
-
-QUICK_NODE_HTTP_URL = os.getenv("QUICK_NODE_HTTP_URL")
-
-if not (QUICK_NODE_HTTP_URL):
-    sys.exit("🔑 Please add your quick node http url to the .env file to continue!")
-
-QUICK_NODE_WSS_URL = os.getenv("QUICK_NODE_WSS_URL")
-
-if not (QUICK_NODE_WSS_URL):
-    sys.exit("🔑 Please add your quick node wss url to the .env file to continue!")
-
-CHAIN_ID_NUMBER = os.getenv("CHAIN_ID_NUMBER")
-
-if not (CHAIN_ID_NUMBER):
-    sys.exit("🔑 Please add your chain id to the .env file to continue!")
 
 CHAIN_ID = int(CHAIN_ID_NUMBER)
-
-ROUTER_ADDRESS = os.getenv("ROUTER_ADDRESS")
-
-if not (ROUTER_ADDRESS):
-    sys.exit("🔑 Please add your router address to the .env file to continue!")
-
 ROUTER = Web3.to_checksum_address(ROUTER_ADDRESS)
-
-SWAP_SEL = {  # V2/V3/UR selectors
-    b"\x7f\xf3j\xb5",
-    b"\xfb=\xdbA",
-    b"\x18\xcb\xaf\xe5",
-    b"J%\xd9J",
-    b"8\xed\x17\x39",
-    b"\x88\x03\xdb\xee",
-    b"\x04\xe4Z\xaf",
-    b"P#\xb4\xdf",
-    b"\xdb>!\x98",
-    b"\t\xb8\x13F",
-    b"5\x93VL",
-}
+ACCOUNT = Account.from_key(ACCOUNT_PRIVATE_KEY)
 
 
 def is_router_swap(tx):
@@ -60,7 +25,7 @@ def is_router_swap(tx):
         tx
         and tx.get("to")
         and tx["to"].lower() == ROUTER.lower()
-        and tx["input"][:4] in SWAP_SEL
+        and tx["input"][:4] in SWAP_SELECTORS
     )
 
 
@@ -69,7 +34,6 @@ def gas_price(tx):
 
 
 w3 = Web3(HTTPProvider(QUICK_NODE_HTTP_URL))
-acct = Account.from_key(ACCOUNT_PRIVATE_KEY)
 with open("IUniswapV2Router02.json") as f:
     router_abi = json.load(f)["abi"]
 router = w3.eth.contract(address=ROUTER, abi=router_abi)
@@ -84,13 +48,13 @@ def fire_test_swap():
         fee_gwei = 40
 
     deadline = int(time.time()) + 900
-    nonce = w3.eth.get_transaction_count(acct.address, "pending")
+    nonce = w3.eth.get_transaction_count(ACCOUNT.address, "pending")
 
     tx = router.functions.swapExactETHForTokens(
-        0, [router.address, router.address], acct.address, deadline
+        0, [router.address, router.address], ACCOUNT.address, deadline
     ).build_transaction(
         {
-            "from": acct.address,
+            "from": ACCOUNT.address,
             "value": w3.to_wei(amount_eth, "ether"),
             "nonce": nonce,
             "gas": 250_000,
@@ -99,7 +63,7 @@ def fire_test_swap():
             "chainId": CHAIN_ID,
         }
     )
-    signed = acct.sign_transaction(tx)
+    signed = ACCOUNT.sign_transaction(tx)
     h = w3.eth.send_raw_transaction(signed.raw_transaction)
     print("⟶ sent test swap", to_hex(h))
 

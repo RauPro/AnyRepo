@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from eth_account import Account
 from eth_utils import to_hex
 from web3 import Web3, AsyncWeb3, WebSocketProvider
+import random
 
 try:                          
     from web3.providers.http import HTTPProvider
@@ -38,16 +39,23 @@ def is_router_swap(tx):
 def gas_price(tx):
     return tx.get("gasPrice") or tx["maxFeePerGas"]
 
-# ---------- HTTP client for test swaps (optional) ----------
 w3   = Web3(HTTPProvider(HTTP))
 acct = Account.from_key(PK)
 with open("IUniswapV2Router02.json") as f:
     router_abi = json.load(f)["abi"]
 router = w3.eth.contract(address=ROUTER, abi=router_abi)
 
-def fire_test_swap(amount_eth=0.001):
-    nonce = w3.eth.get_transaction_count(acct.address, "pending")
-    deadline = int(time.time()) + 600
+def fire_test_swap():
+    if random.random() < 0.9:
+        amount_eth = round(random.uniform(0.0003, 0.002), 6)  
+        fee_gwei   = 30
+    else:
+        amount_eth = round(random.uniform(0.005, 0.02), 6)   
+        fee_gwei   = 40                                        
+
+    deadline = int(time.time()) + 900
+    nonce    = w3.eth.get_transaction_count(acct.address, "pending")
+
     tx = router.functions.swapExactETHForTokens(
         0, [router.address, router.address], acct.address, deadline
     ).build_transaction({
@@ -92,7 +100,6 @@ async def collect_router_swaps(max_swaps=20, max_seconds=60, ready_flag=None):
                 if len(swaps) >= max_swaps:
                     break
 
-            # quit on wall-clock timeout
             if time.time() - start > max_seconds:
                 print("⏰ hit timeout")
                 break
@@ -109,7 +116,7 @@ async def main():
     await ready.wait()          
 
     for _ in range(3):
-        fire_test_swap(0.001)
+        fire_test_swap()
         await asyncio.sleep(0.5)
 
     swaps = await listener

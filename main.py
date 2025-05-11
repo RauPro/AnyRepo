@@ -16,7 +16,13 @@ router = initialize_uniswap_router(web3_http)
 async def main():
     ready = asyncio.Event()
     listener = asyncio.create_task(
-        track_mempool(max_swaps=20, max_seconds=60, subscription_ready=ready)
+        track_mempool(
+            max_swaps=20,
+            max_seconds=60,
+            subscription_ready=ready,
+            router=router,
+            web3_http=web3_http,
+        )
     )
 
     await ready.wait()
@@ -28,7 +34,7 @@ async def main():
     swaps = await listener
 
     print(
-        f"\n🎯 Successfully captured {len(swaps)} router {'swap' if len(swaps) == 1 else 'swaps'}! 🚀"
+        f"🎯 Successfully captured {len(swaps)} router {'swap' if len(swaps) == 1 else 'swaps'}! 🚀"
     )
 
     swaps.sort(key=get_transaction_gas_price, reverse=True)

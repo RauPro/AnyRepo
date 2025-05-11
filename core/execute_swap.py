@@ -42,5 +42,5 @@ def execute_swap(web3, router):
     )
     signed = ACCOUNT.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
-    print("🚀 Sent test swap:", to_hex(tx_hash))
+    print("💸 Sent test swap:", to_hex(tx_hash))
     return tx_hash

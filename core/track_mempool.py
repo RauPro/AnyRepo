@@ -1,12 +1,14 @@
 import asyncio
 import time
-
 from eth_utils import to_hex
 from services import establish_quicknode_websocket_connection
 from utils import get_transaction_gas_price, is_uniswap_router_transaction
+from core.slippage import slippage
 
 
-async def track_mempool(max_swaps=20, max_seconds=60, subscription_ready=None):
+async def track_mempool(
+    max_swaps=20, max_seconds=60, subscription_ready=None, router=None, web3_http=None
+):
     """
     Tracks the Ethereum mempool for Uniswap router transactions.
 
@@ -48,10 +50,14 @@ async def track_mempool(max_swaps=20, max_seconds=60, subscription_ready=None):
                 except Exception:
                     continue
             if transaction and is_uniswap_router_transaction(transaction):
+                slippage(web3_http, router, transaction)
+
                 swaps.append(transaction)
+
                 print(
-                    f"👁️ Swap seen: {to_hex(transaction_hash)} with gas price {get_transaction_gas_price(transaction)}"
+                    f"👁️  Swap seen: {to_hex(transaction_hash)} with gas price {get_transaction_gas_price(transaction)}"
                 )
+
                 if len(swaps) >= max_swaps:
                     break
 

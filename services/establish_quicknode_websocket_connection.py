@@ -17,9 +17,9 @@ async def establish_quicknode_websocket_connection():
     is_connected = await web3_wss.is_connected()
 
     if not is_connected:
-        print("❌ Failed to connect to QuickNode WSS endpoint at", QUICK_NODE_WSS_URL)
+        print("❌ Failed to connect to QuickNode WSS endpoint")
         return web3_wss
 
-    print("✅ Successfully connected to QuickNode WSS endpoint at", QUICK_NODE_WSS_URL)
+    print("✅ Successfully connected to QuickNode WSS endpoint")
 
     return web3_wss

@@ -10,16 +10,35 @@ from eth_utils import to_hex
 from web3 import AsyncWeb3, HTTPProvider, Web3, WebSocketProvider
 
 load_dotenv()
-API = os.getenv("QUICK_NODE_API_KEY")
-PK = os.getenv("PRIVATE_KEY")
-if not (API and PK):
-    sys.exit("Set QUICK_NODE_API_KEY and PRIVATE_KEY in .env")
 
-HTTP = f"https://skilled-little-gadget.ethereum-sepolia.quiknode.pro/{API}"
-WSS = f"wss://skilled-little-gadget.ethereum-sepolia.quiknode.pro/{API}"
+ACCOUNT_PRIVATE_KEY = os.getenv("ACCOUNT_PRIVATE_KEY")
 
-ROUTER = Web3.to_checksum_address("0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3")
-CHAIN = 11155111
+if not (ACCOUNT_PRIVATE_KEY):
+    sys.exit("🔑 Please add your private key to the .env file to continue!")
+
+QUICK_NODE_HTTP_URL = os.getenv("QUICK_NODE_HTTP_URL")
+
+if not (QUICK_NODE_HTTP_URL):
+    sys.exit("🔑 Please add your quick node http url to the .env file to continue!")
+
+QUICK_NODE_WSS_URL = os.getenv("QUICK_NODE_WSS_URL")
+
+if not (QUICK_NODE_WSS_URL):
+    sys.exit("🔑 Please add your quick node wss url to the .env file to continue!")
+
+CHAIN_ID_NUMBER = os.getenv("CHAIN_ID_NUMBER")
+
+if not (CHAIN_ID_NUMBER):
+    sys.exit("🔑 Please add your chain id to the .env file to continue!")
+
+CHAIN_ID = int(CHAIN_ID_NUMBER)
+
+ROUTER_ADDRESS = os.getenv("ROUTER_ADDRESS")
+
+if not (ROUTER_ADDRESS):
+    sys.exit("🔑 Please add your router address to the .env file to continue!")
+
+ROUTER = Web3.to_checksum_address(ROUTER_ADDRESS)
 
 SWAP_SEL = {  # V2/V3/UR selectors
     b"\x7f\xf3j\xb5",
@@ -49,8 +68,8 @@ def gas_price(tx):
     return tx.get("gasPrice") or tx["maxFeePerGas"]
 
 
-w3 = Web3(HTTPProvider(HTTP))
-acct = Account.from_key(PK)
+w3 = Web3(HTTPProvider(QUICK_NODE_HTTP_URL))
+acct = Account.from_key(ACCOUNT_PRIVATE_KEY)
 with open("IUniswapV2Router02.json") as f:
     router_abi = json.load(f)["abi"]
 router = w3.eth.contract(address=ROUTER, abi=router_abi)
@@ -77,7 +96,7 @@ def fire_test_swap():
             "gas": 250_000,
             "maxFeePerGas": w3.to_wei(30, "gwei"),
             "maxPriorityFeePerGas": w3.to_wei(2, "gwei"),
-            "chainId": CHAIN,
+            "chainId": CHAIN_ID,
         }
     )
     signed = acct.sign_transaction(tx)
@@ -90,7 +109,7 @@ ready = asyncio.Event()
 
 async def collect_router_swaps(max_swaps=20, max_seconds=60, ready_flag=None):
     swaps, start = [], time.time()
-    async with AsyncWeb3(WebSocketProvider(WSS)) as aw3:
+    async with AsyncWeb3(WebSocketProvider(QUICK_NODE_WSS_URL)) as aw3:
         sub_id = await aw3.eth.subscribe("newPendingTransactions")
         if ready_flag:
             ready_flag.set()

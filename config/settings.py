@@ -1,6 +1,8 @@
 import os
 import sys
 from dotenv import load_dotenv
+from eth_account import Account
+from web3 import Web3
 
 load_dotenv()
 
@@ -28,3 +30,9 @@ ROUTER_ADDRESS = os.getenv("ROUTER_ADDRESS")
 
 if not (ROUTER_ADDRESS):
     sys.exit("🔑 Please add your router address to the .env file to continue!")
+
+CHAIN_ID = int(CHAIN_ID_NUMBER)
+
+ROUTER_CHECKSUM_ADDRESS = Web3.to_checksum_address(ROUTER_ADDRESS)
+
+ACCOUNT = Account.from_key(ACCOUNT_PRIVATE_KEY)

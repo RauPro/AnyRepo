@@ -2,41 +2,49 @@ import asyncio
 import json
 import random
 import time
+import sys
 from config import (
-    ACCOUNT_PRIVATE_KEY,
+    ACCOUNT,
+    CHAIN_ID,
     QUICK_NODE_HTTP_URL,
     QUICK_NODE_WSS_URL,
-    CHAIN_ID_NUMBER,
-    ROUTER_ADDRESS,
+    ROUTER_CHECKSUM_ADDRESS,
 )
-from data.constants import SWAP_SELECTORS
-from eth_account import Account
 from eth_utils import to_hex
 from web3 import AsyncWeb3, HTTPProvider, Web3, WebSocketProvider
 
-
-CHAIN_ID = int(CHAIN_ID_NUMBER)
-ROUTER = Web3.to_checksum_address(ROUTER_ADDRESS)
-ACCOUNT = Account.from_key(ACCOUNT_PRIVATE_KEY)
+from utils import is_uniswap_router_transaction, get_transaction_gas_price
 
 
-def is_router_swap(tx):
-    return (
-        tx
-        and tx.get("to")
-        and tx["to"].lower() == ROUTER.lower()
-        and tx["input"][:4] in SWAP_SELECTORS
-    )
+def connect_to_quicknode_http():
+    """
+    Establishes an HTTP connection to the QuickNode endpoint.
+
+    Returns:
+        Web3: The Web3 instance connected to QuickNode HTTP endpoint.
+        If connection fails, returns the Web3 instance anyway but prints error message.
+    """
+    w3 = Web3(HTTPProvider(QUICK_NODE_HTTP_URL))
+
+    is_connected = w3.is_connected()
+
+    if not is_connected:
+        print("❌ Failed to connect to QuickNode HTTP endpoint at", QUICK_NODE_HTTP_URL)
+        return w3
+
+    print("✔ Successfully connected to QuickNode HTTP endpoint at", QUICK_NODE_HTTP_URL)
+
+    return w3
 
 
-def gas_price(tx):
-    return tx.get("gasPrice") or tx["maxFeePerGas"]
+w3 = connect_to_quicknode_http()
 
+with open("abi/UniswapV2Router02.json") as f:
+    router_abi = json.load(f)
 
-w3 = Web3(HTTPProvider(QUICK_NODE_HTTP_URL))
-with open("IUniswapV2Router02.json") as f:
-    router_abi = json.load(f)["abi"]
-router = w3.eth.contract(address=ROUTER, abi=router_abi)
+router = w3.eth.contract(address=ROUTER_CHECKSUM_ADDRESS, abi=router_abi)
+
+print(router)
 
 
 def fire_test_swap():
@@ -68,9 +76,6 @@ def fire_test_swap():
     print("⟶ sent test swap", to_hex(h))
 
 
-ready = asyncio.Event()
-
-
 async def collect_router_swaps(max_swaps=20, max_seconds=60, ready_flag=None):
     swaps, start = [], time.time()
     async with AsyncWeb3(WebSocketProvider(QUICK_NODE_WSS_URL)) as aw3:
@@ -92,9 +97,11 @@ async def collect_router_swaps(max_swaps=20, max_seconds=60, ready_flag=None):
                     tx = await aw3.eth.get_transaction(tx_hash)
                 except Exception:
                     continue
-            if tx and is_router_swap(tx):
+            if tx and is_uniswap_router_transaction(tx):
                 swaps.append(tx)
-                print(f"✓ swap seen {to_hex(tx_hash)} gas {gas_price(tx)}")
+                print(
+                    f"✓ swap seen {to_hex(tx_hash)} gas {get_transaction_gas_price(tx)}"
+                )
                 if len(swaps) >= max_swaps:
                     break
 
@@ -121,9 +128,9 @@ async def main():
     swaps = await listener
 
     print(f"\nCaptured {len(swaps)} router swaps")
-    swaps.sort(key=gas_price, reverse=True)
+    swaps.sort(key=get_transaction_gas_price, reverse=True)
     for tx in swaps:
-        print(to_hex(tx["hash"]), "gas", gas_price(tx))
+        print(to_hex(tx["hash"]), "gas", get_transaction_gas_price(tx))
 
     with open("swaps.json", "w") as f:
         json.dump([dict(tx) for tx in swaps], f, indent=2, default=to_hex)

@@ -1,14 +1,13 @@
-import os, json, time, asyncio
+import asyncio
+import json
+import os
+import random
+import sys
+import time
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_utils import to_hex
-from web3 import Web3, AsyncWeb3, WebSocketProvider
-import random
-
-try:
-    from web3.providers.http import HTTPProvider
-except ImportError:
-    from web3 import HTTPProvider
+from web3 import AsyncWeb3, HTTPProvider, Web3, WebSocketProvider
 
 load_dotenv()
 API = os.getenv("QUICK_NODE_API_KEY")

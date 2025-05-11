@@ -1,15 +1,19 @@
-cryptography
-libnacl
-aiohttp
-aiohttp_apispec>=3.0.0b1
-pyOpenSSL
-pyasn1
-marshmallow
-typing-extensions
-packaging
-apispec>=6.0.0
-pyipv8==2.12.0
+# IPv8
+# cryptography
+# libnacl
+# aiohttp
+# aiohttp_apispec>=3.0.0b1
+# pyOpenSSL
+# pyasn1
+# marshmallow
+# typing-extensions
+# packaging
+# apispec>=6.0.0
+# pyipv8==2.12.0
+
+# MeV
 python-dotenv~=1.1.0
 dotenv~=0.9.9
 web3>=7.11,<8
 eth-account~=0.13.7
+prettytable

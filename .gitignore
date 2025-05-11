@@ -1,6 +1,17 @@
+# Qodo IDE specific files
 .qodo
+
+# Python virtual environment
 .venv
+
+# SSL/TLS certificate files
 *.pem
+
+# Python compiled bytecode cache
 __pycache__/
+
+# JetBrains IDE (PyCharm, etc) settings
 .idea
+
+# Environment variables file containing sensitive data
 .env

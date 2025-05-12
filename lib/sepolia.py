@@ -43,7 +43,7 @@ def gas_price(tx):
 
 w3   = Web3(HTTPProvider(HTTP))
 acct = Account.from_key(PK)
-with open("../IUniswapV2Router02.json") as f:
+with open("IUniswapV2Router02.json") as f:
     router_abi = json.load(f)["abi"]
 router = w3.eth.contract(address=ROUTER, abi=router_abi)
 WETH   = Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14")
@@ -107,7 +107,7 @@ async def collect_router_swaps(max_swaps=20, max_seconds=60, ready_flag=None):
                 print("⏰ hit timeout")
                 break
 
-        #await aw3.eth.unsubscribe(sub_i)
+        await aw3.eth.unsubscribe(sub)
     return swaps
 
 async def main():

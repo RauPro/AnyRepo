@@ -1,3 +1,4 @@
+import os
 import random
 import time
 from config import ACCOUNT, CHAIN_ID
@@ -15,6 +16,9 @@ def execute_swap(web3, router):
     Returns:
         str: Transaction hash of the executed swap
     """
+    weth_address = router["contract"].functions.WETH().call()
+    usdc = os.getenv("USDC_TOKEN")
+    print(weth_address)
     if random.random() < 0.9:
         amount_eth = round(random.uniform(0.0003, 0.002), 6)
     else:
@@ -26,7 +30,7 @@ def execute_swap(web3, router):
     tx = (
         router["contract"]
         .functions.swapExactETHForTokens(
-            0, [router["address"], router["address"]], ACCOUNT.address, deadline
+            0, [weth_address, usdc], ACCOUNT.address, deadline
         )
         .build_transaction(
             {
@@ -44,3 +48,5 @@ def execute_swap(web3, router):
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
     print("💸 Sent test swap:", to_hex(tx_hash))
     return tx_hash
+
+

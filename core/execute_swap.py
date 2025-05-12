@@ -16,9 +16,6 @@ def execute_swap(web3, router):
     Returns:
         str: Transaction hash of the executed swap
     """
-    weth_address = router["contract"].functions.WETH().call()
-    usdc = os.getenv("USDC_TOKEN")
-    print(weth_address)
     if random.random() < 0.9:
         amount_eth = round(random.uniform(0.0003, 0.002), 6)
     else:
@@ -26,11 +23,12 @@ def execute_swap(web3, router):
 
     deadline = int(time.time()) + 900
     nonce = web3.eth.get_transaction_count(ACCOUNT.address, "pending")
-
+    weth_address = router["contract"].functions.WETH().call()
+    usdc_address = os.getenv("USDC_TOKEN")
     tx = (
         router["contract"]
         .functions.swapExactETHForTokens(
-            0, [weth_address, usdc], ACCOUNT.address, deadline
+            0, [weth_address, usdc_address], ACCOUNT.address, deadline
         )
         .build_transaction(
             {

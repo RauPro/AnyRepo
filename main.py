@@ -24,19 +24,14 @@ async def main():
             web3_http=web3_http,
         )
     )
-
     await ready.wait()
-
     for _ in range(3):
         execute_swap(web3_http, router)
         await asyncio.sleep(0.5)
-
     swaps = await listener
-
     print(
         f"🎯 Successfully captured {len(swaps)} router {'swap' if len(swaps) == 1 else 'swaps'}! 🚀"
     )
-
     swaps.sort(key=get_transaction_gas_price, reverse=True)
 
     t = PrettyTable(["Transaction Hash", "Gas Price"])

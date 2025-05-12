@@ -1,4 +1,6 @@
 import os, json, time, asyncio
+import sys
+
 from dotenv import load_dotenv
 from eth_account import Account
 from eth_utils import to_hex
@@ -44,7 +46,8 @@ acct = Account.from_key(PK)
 with open("IUniswapV2Router02.json") as f:
     router_abi = json.load(f)["abi"]
 router = w3.eth.contract(address=ROUTER, abi=router_abi)
-
+WETH   = Web3.to_checksum_address("0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14")
+DAI    = Web3.to_checksum_address("0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6")
 def fire_test_swap():
     if random.random() < 0.9:
         amount_eth = round(random.uniform(0.0003, 0.002), 6)  
@@ -57,7 +60,7 @@ def fire_test_swap():
     nonce    = w3.eth.get_transaction_count(acct.address, "pending")
 
     tx = router.functions.swapExactETHForTokens(
-        0, [router.address, router.address], acct.address, deadline
+        0, [WETH, DAI], acct.address, deadline
     ).build_transaction({
         "from": acct.address,
         "value": w3.to_wei(amount_eth, "ether"),

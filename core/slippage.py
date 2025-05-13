@@ -9,34 +9,38 @@ SLIPPAGE_TOLERANCE = 0.005
 def slippage(web3_http, router, transaction):
     fn_obj, params = router["contract"].decode_function_input(transaction.input)
 
-    amount_in = params.get("amountIn", "Not specified")
-    min_amount_out = params.get("amountOutMin", "Not specified")
     path = params.get("path", [])
-    recipient = params.get("to", "Not specified")
-    deadline = params.get("deadline", "Not specified")
+    token_address = path[0]
 
-    print("🔄 Swap Details")
-    print("├─ Amount In:", amount_in)
-    print("├─ Min Amount Out:", min_amount_out)
-    print("├─ Path:", [addr for addr in path])
-    print("├─ Recipient:", recipient)
-    print("└─ Deadline:", deadline)
-
-    # only continue if amount_in is a number and path is a list
-    if not isinstance(amount_in, int) or not isinstance(path, list) or len(path) < 2:
+    if token_address != "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14":
+        print("🟡 Not interested in this token because it's not WETH")
         return
 
-    amounts = router["contract"].functions.getAmountsOut(amount_in, path).call()
-    expected_out = amounts[-1]
-    min_out = int(expected_out * (1 - SLIPPAGE_TOLERANCE))
+    value = transaction.value
 
-    token_in_address = path[0]
+    if not isinstance(value, int) or not isinstance(path, list) or len(path) < 2:
+        print("🟡️ Not interested in this token because transaction format is invalid")
+        return
+
+    print("📝 Transaction:")
+    for key, value in transaction.items():
+        print(f"├─ {key}: {value}")
+    print("└─")
+
+    print("📝 Transaction input:")
+    for key, value in params.items():
+        print(f"├─ {key}: {value}")
+    print("└─")
 
     token_contract = web3_http.eth.contract(
-        address=token_in_address, abi=json.load(open("abi/UniswapV2ERC20.json", "r"))
+        address=token_address, abi=json.load(open("abi/UniswapV2ERC20.json", "r"))
     )
-    # print contract address
-    print(f"🪙  Token Contract Address: {token_in_address}")
+
+    amounts = router["contract"].functions.getAmountsOut(value, path).call()
+
+    expected_out = amounts[-1]
+
+    min_out = int(expected_out * (1 - SLIPPAGE_TOLERANCE))
 
     balance = token_contract.functions.balanceOf(ACCOUNT.address).call()
 

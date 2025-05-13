@@ -13,7 +13,7 @@ def slippage(web3_http, router, transaction):
     token_address = path[0]
 
     print("🔍 Token address:", token_address)
-    if token_address != "0xeE567Fe1712Faf6149d80dA1E6934E354124CfE3":
+    if token_address != "0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14":
         print("🟡 Not interested in this token because it's not WETH")
         return
 

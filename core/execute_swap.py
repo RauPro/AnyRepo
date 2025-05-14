@@ -5,7 +5,6 @@ import time
 from config import ACCOUNT, CHAIN_ID
 from eth_utils import to_hex
 
-from services.get_liquidity_weth_usdc import get_liquidity
 
 
 def execute_swap(web3, router):
@@ -28,7 +27,7 @@ def execute_swap(web3, router):
     nonce = web3.eth.get_transaction_count(ACCOUNT.address, "pending")
     weth_address = router["contract"].functions.WETH().call()
     usdc_address = os.getenv("USDC_TOKEN")
-    get_liquidity(web3, weth_address, usdc_address)
+    #get_liquidity(web3, weth_address, usdc_address)
     tx = (
         router["contract"]
         .functions.swapExactETHForTokens(

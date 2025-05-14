@@ -9,7 +9,7 @@ from services import (
     establish_quicknode_http_connection,
     initialize_uniswap_router,
 )
-from services.get_liquidity_weth_usdc import get_liquidity
+from services.get_liquidity_weth_usdc import get_liquidity_and_slippage
 from utils import get_transaction_gas_price
 
 web3_http = establish_quicknode_http_connection()
@@ -29,7 +29,7 @@ async def main():
     )
     weth_address = web3_http.to_checksum_address(os.getenv("WETH_TOKEN"))
     usdc_address = web3_http.to_checksum_address(os.getenv("USDC_TOKEN"))
-    get_liquidity(web3_http, weth_address, usdc_address)
+    get_liquidity_and_slippage(web3_http, weth_address, usdc_address, 85439493175907712000)
     await ready.wait()
     for _ in range(3):
         #execute_swap(web3_http, router)

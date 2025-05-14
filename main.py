@@ -29,7 +29,7 @@ async def main():
     )
     weth_address = web3_http.to_checksum_address(os.getenv("WETH_TOKEN"))
     usdc_address = web3_http.to_checksum_address(os.getenv("USDC_TOKEN"))
-    get_liquidity_and_slippage(web3_http, weth_address, usdc_address, 85439493175907712000)
+    get_liquidity_and_slippage(web3_http, weth_address, usdc_address, 8543949317590771002000)
     await ready.wait()
     for _ in range(3):
         #execute_swap(web3_http, router)

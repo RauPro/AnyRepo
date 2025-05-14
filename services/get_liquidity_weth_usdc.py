@@ -52,31 +52,24 @@ def simulate_front_run_profit(reserve_usdc: float,
                               victim_amount_usdc: float,
                               mev_amount_usdc: float,
                               fee: float = 0.003):
-    mev_weth, _, _, _ = simulate_swap(reserve_usdc,
-                                      reserve_weth,
-                                      mev_amount_usdc,
-                                      fee)
-    amount_in_with_fee = mev_amount_usdc * (1 - fee)
-    reserve_usdc_1 = reserve_usdc + amount_in_with_fee
-    reserve_weth_1 = reserve_weth - mev_weth
-    victim_weth, _, _, _ = simulate_swap(reserve_usdc_1,
-                                         reserve_weth_1,
-                                         victim_amount_usdc,
-                                         fee)
-    victim_in_with_fee = victim_amount_usdc * (1 - fee)
-    reserve_usdc_2 = reserve_usdc_1 + victim_in_with_fee
-    reserve_weth_2 = reserve_weth_1 - victim_weth
-    usdc_back, _, _, _ = simulate_swap(reserve_weth_2,
-                                       reserve_usdc_2,
-                                       mev_weth,
-                                       fee)
-    profit_usdc = usdc_back - mev_amount_usdc
-    return profit_usdc
+    mev_weth, price_before, _, _ = simulate_swap(
+        reserve_usdc, reserve_weth, mev_amount_usdc, fee
+    )
+    usdc_per_weth_before = 1.0 / price_before
+    in_with_fee = mev_amount_usdc * (1 - fee)
+    r0 = reserve_usdc + in_with_fee
+    r1 = reserve_weth - mev_weth
+    _, _, price_after1, _ = simulate_swap(
+        r0, r1, victim_amount_usdc, fee
+    )
+    usdc_per_weth_after1 = 1.0 / price_after1
+    profit_usdc = mev_weth * (usdc_per_weth_after1 - usdc_per_weth_before)
+    return profit_usdc / 10**18
 
 def get_liquidity_and_slippage(web3,
                                weth_address,
                                usdc_address,
-                               weth_amount: float,
+                               usdc: float,
                                slippage_tol: float = 0.005):
     FACTORY = os.getenv("FACTORY_V2")
     factory = web3.eth.contract(FACTORY,
@@ -88,15 +81,15 @@ def get_liquidity_and_slippage(web3,
     reserves = contract.functions.getReserves().call()
     reserve_usdc = reserves[0]
     reserve_weth = reserves[1]
-    out_usdc, price_before, price_after, impact = simulate_swap(
-        reserve_usdc, reserve_weth, weth_amount
+    out_weth, price_before, price_after, impact = simulate_swap(
+        reserve_usdc, reserve_weth, usdc
     )
-    max_weth = max_input_for_slippage(
+    max_usdc = max_input_for_slippage(
         reserve_weth, reserve_usdc, tol=slippage_tol
     )
-    max_usdc = simulate_swap(reserve_weth, reserve_usdc, max_weth)[0]
-    usdc_decimals = 6
-    weth_decimals = 6
+    max_weth = simulate_swap(reserve_usdc, reserve_weth, max_usdc)[0]
+    usdc_decimals = 18
+    weth_decimals = 18
     price_weth_in_usdc = (reserve_usdc / 10 ** usdc_decimals) / (reserve_weth / 10 ** weth_decimals)
     price_usdc_in_weth = (reserve_weth / 10 ** weth_decimals) / (reserve_usdc / 10 ** usdc_decimals)
     mainnet_price_usdc = float(fetch_token_data(usdc_address)["data"]["attributes"]["price_usd"])
@@ -106,18 +99,25 @@ def get_liquidity_and_slippage(web3,
     print(f"   • 1 WETH  ≃ {price_weth_in_usdc:.5f} USDC")
     print(f"   • 1 USDC  ≃ {price_usdc_in_weth:.5f} WETH")
     print(f"   • Market  ≃ {price_weth_in_usdc * mainnet_price_usdc:.5f} US")
-    print(f"\n🔄  Simulating swap of {weth_amount / 10 ** 6:.5f} USDC →")
-    print(f"   • You get      ≃ {out_usdc / 10 ** 6:.5f} WETH")
+    print(f"\n🔄  Simulating swap of {usdc / 10 ** usdc_decimals:.5f} USDC →")
+    print(f"   • You get      ≃ {out_weth / 10 ** weth_decimals:.5f} WETH")
     print(f"   • New price    ≃ {price_after:.5f} WETH/USDC")
     print(f"   • Price impact ≃ {impact * 100:.5f}%")
 
     print(f"   • Equivalent   ≃ ${((1  / price_after)  * mainnet_price_usdc):.5f} USD")
 
     print(f"\n🔒  To keep slippage ≤ {slippage_tol * 100:.5f}%:")
-    print(f"   • Max input    ≃ {max_weth:.5f} USDC")
-    print(f"   • You’d get    ≃ {max_usdc:.5f} WETH")
+    print(f"   • Max input    ≃ {max_usdc / 10 ** usdc_decimals:.5f} USDC")
+    print(f"   • You’d get    ≃ {max_weth / 10 ** weth_decimals:.5f} WETH")
     print(f"   • Price moves  ≃ {price_before:.15f} → "
-          f"{simulate_swap(reserve_usdc, reserve_weth, max_weth)[2]:.15f} WETH/USDC")
+          f"{simulate_swap(reserve_usdc, reserve_weth, max_usdc)[2]:.15f} WETH/USDC")
+    profit = simulate_front_run_profit(
+        reserve_usdc,
+        reserve_weth,
+        usdc,
+        max_usdc
+    )
+    print(f"💰 Estimated MEV profit: {profit:.10f} USDC")
 
 
 def fetch_token_data(usdc_address):

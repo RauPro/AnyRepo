@@ -28,10 +28,10 @@ def simulate_swap(reserve_in: float,
 
 def max_input_for_slippage(reserve_in: float,
                            reserve_out: float,
-                           tol: float = 0.005,
+                           tol: float = 0.0005,
                            fee: float = 0.003,
                            max_fraction: float = 0.5,
-                           iters: int = 64):
+                           iters: int = 15):
     """
     Binary-search the largest amount_in (≤ max_fraction * reserve_in)
     whose price_impact ≤ tol.
@@ -40,11 +40,38 @@ def max_input_for_slippage(reserve_in: float,
     for _ in range(iters):
         mid = (lo + hi) / 2
         _, _, _, impact = simulate_swap(reserve_in, reserve_out, mid, fee)
+        print(impact)
         if impact <= tol:
             lo = mid
         else:
             hi = mid
     return lo
+
+def simulate_front_run_profit(reserve_usdc: float,
+                              reserve_weth: float,
+                              victim_amount_usdc: float,
+                              mev_amount_usdc: float,
+                              fee: float = 0.003):
+    mev_weth, _, _, _ = simulate_swap(reserve_usdc,
+                                      reserve_weth,
+                                      mev_amount_usdc,
+                                      fee)
+    amount_in_with_fee = mev_amount_usdc * (1 - fee)
+    reserve_usdc_1 = reserve_usdc + amount_in_with_fee
+    reserve_weth_1 = reserve_weth - mev_weth
+    victim_weth, _, _, _ = simulate_swap(reserve_usdc_1,
+                                         reserve_weth_1,
+                                         victim_amount_usdc,
+                                         fee)
+    victim_in_with_fee = victim_amount_usdc * (1 - fee)
+    reserve_usdc_2 = reserve_usdc_1 + victim_in_with_fee
+    reserve_weth_2 = reserve_weth_1 - victim_weth
+    usdc_back, _, _, _ = simulate_swap(reserve_weth_2,
+                                       reserve_usdc_2,
+                                       mev_weth,
+                                       fee)
+    profit_usdc = usdc_back - mev_amount_usdc
+    return profit_usdc
 
 def get_liquidity_and_slippage(web3,
                                weth_address,
@@ -65,7 +92,7 @@ def get_liquidity_and_slippage(web3,
         reserve_usdc, reserve_weth, weth_amount
     )
     max_weth = max_input_for_slippage(
-        reserve_usdc, reserve_weth, tol=slippage_tol
+        reserve_weth, reserve_usdc, tol=slippage_tol
     )
     max_usdc = simulate_swap(reserve_weth, reserve_usdc, max_weth)[0]
     usdc_decimals = 6
@@ -79,17 +106,18 @@ def get_liquidity_and_slippage(web3,
     print(f"   • 1 WETH  ≃ {price_weth_in_usdc:.5f} USDC")
     print(f"   • 1 USDC  ≃ {price_usdc_in_weth:.5f} WETH")
     print(f"   • Market  ≃ {price_weth_in_usdc * mainnet_price_usdc:.5f} US")
-    print(f"\n🔄  Simulating swap of {weth_amount:.5f} USDC →")
-    print(f"   • You get      ≃ {out_usdc:.5f} WETH")
+    print(f"\n🔄  Simulating swap of {weth_amount / 10 ** 6:.5f} USDC →")
+    print(f"   • You get      ≃ {out_usdc / 10 ** 6:.5f} WETH")
     print(f"   • New price    ≃ {price_after:.5f} WETH/USDC")
     print(f"   • Price impact ≃ {impact * 100:.5f}%")
-    print(f"   • Equivalent   ≃ ${(price_after * (weth_amount / 10** 18) * mainnet_price_usdc):.5f} USD")
+
+    print(f"   • Equivalent   ≃ ${((1  / price_after)  * mainnet_price_usdc):.5f} USD")
 
     print(f"\n🔒  To keep slippage ≤ {slippage_tol * 100:.5f}%:")
     print(f"   • Max input    ≃ {max_weth:.5f} USDC")
     print(f"   • You’d get    ≃ {max_usdc:.5f} WETH")
-    print(f"   • Price moves  ≃ {price_before:.5f} → "
-          f"{simulate_swap(reserve_weth, reserve_usdc, max_weth)[2]:.5f} WETH/USDC")
+    print(f"   • Price moves  ≃ {price_before:.15f} → "
+          f"{simulate_swap(reserve_usdc, reserve_weth, max_weth)[2]:.15f} WETH/USDC")
 
 
 def fetch_token_data(usdc_address):

@@ -7,7 +7,7 @@ from eth_utils import to_hex
 
 
 
-def execute_swap(web3, router):
+def execute_swap(web3, router, amount_eth):
     """
     Executes a test swap transaction on the Uniswap router.
 
@@ -18,25 +18,29 @@ def execute_swap(web3, router):
     Returns:
         str: Transaction hash of the executed swap
     """
-    if random.random() < 0.9:
-        amount_eth = round(random.uniform(0.0003, 0.002), 6)
-    else:
-        amount_eth = round(random.uniform(0.005, 0.02), 6)
 
     deadline = int(time.time()) + 900
     nonce = web3.eth.get_transaction_count(ACCOUNT.address, "pending")
-    weth_address = router["contract"].functions.WETH().call()
-    usdc_address = os.getenv("USDC_TOKEN")
+    weth_address = web3.to_checksum_address(os.getenv("WETH_TOKEN"))
+    usdc_address = web3.to_checksum_address(os.getenv("USDC_TOKEN"))
     #get_liquidity(web3, weth_address, usdc_address)
+    amount_in_wei = web3.to_wei(amount_eth, "ether")
+    print(web3.to_wei(amount_eth * 1.1, "ether"))
+    amounts_out = router["contract"].functions.getAmountsOut(
+        amount_in_wei,
+        [usdc_address, weth_address]
+    ).call()
+    min_amount_out = int(amounts_out[-1] * (1 - 0.01))
+
     tx = (
         router["contract"]
         .functions.swapExactETHForTokens(
-            0, [router["address"], router["address"]], ACCOUNT.address, deadline
+            min_amount_out, [router["address"], router["address"]], ACCOUNT.address, deadline
         )
         .build_transaction(
             {
                 "from": ACCOUNT.address,
-                "value": web3.to_wei(amount_eth, "ether"),
+                "value": amount_in_wei,
                 "nonce": nonce,
                 "gas": 250_000,
                 "maxFeePerGas": web3.to_wei(30, "gwei"),

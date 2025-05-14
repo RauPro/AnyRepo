@@ -1,8 +1,11 @@
+import json
 import os
 import random
 import time
 from config import ACCOUNT, CHAIN_ID
 from eth_utils import to_hex
+
+from services.get_liquidity_weth_usdc import get_liquidity
 
 
 def execute_swap(web3, router):
@@ -25,10 +28,11 @@ def execute_swap(web3, router):
     nonce = web3.eth.get_transaction_count(ACCOUNT.address, "pending")
     weth_address = router["contract"].functions.WETH().call()
     usdc_address = os.getenv("USDC_TOKEN")
+    get_liquidity(web3, weth_address, usdc_address)
     tx = (
         router["contract"]
         .functions.swapExactETHForTokens(
-            0, [weth_address, usdc_address], ACCOUNT.address, deadline
+            0, [router["address"], router["address"]], ACCOUNT.address, deadline
         )
         .build_transaction(
             {
@@ -46,5 +50,3 @@ def execute_swap(web3, router):
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
     print("💸 Sent test swap:", to_hex(tx_hash))
     return tx_hash
-
-

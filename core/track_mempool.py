@@ -50,8 +50,8 @@ async def track_mempool(
                 except Exception:
                     continue
             if transaction and is_uniswap_router_transaction(transaction):
+                print(transaction)
                 slippage(web3_http, router, transaction)
-
                 swaps.append(transaction)
 
                 print(

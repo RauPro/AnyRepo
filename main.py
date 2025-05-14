@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+
 from prettytable import PrettyTable
 from core import execute_swap, track_mempool
 from eth_utils import to_hex
@@ -7,6 +9,7 @@ from services import (
     establish_quicknode_http_connection,
     initialize_uniswap_router,
 )
+from services.get_liquidity_weth_usdc import get_liquidity
 from utils import get_transaction_gas_price
 
 web3_http = establish_quicknode_http_connection()
@@ -24,9 +27,12 @@ async def main():
             web3_http=web3_http,
         )
     )
+    weth_address = web3_http.to_checksum_address(os.getenv("WETH_TOKEN"))
+    usdc_address = web3_http.to_checksum_address(os.getenv("USDC_TOKEN"))
+    get_liquidity(web3_http, weth_address, usdc_address)
     await ready.wait()
     for _ in range(3):
-        execute_swap(web3_http, router)
+        #execute_swap(web3_http, router)
         await asyncio.sleep(0.5)
     swaps = await listener
     print(

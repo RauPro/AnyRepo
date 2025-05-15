@@ -24,7 +24,6 @@ def execute_swap(web3, router, amount_eth):
     usdc_address = web3.to_checksum_address(os.getenv("USDC_TOKEN"))
     # get_liquidity(web3, weth_address, usdc_address)
     amount_in_wei = web3.to_wei(amount_eth, "ether")
-    print(web3.to_wei(amount_eth * 1.1, "ether"))
     amounts_out = router["contract"].functions.getAmountsOut(amount_in_wei, [usdc_address, weth_address]).call()
     min_amount_out = int(amounts_out[-1] * (1 - 0.01))
     gas_estimate = router["contract"].functions.swapExactETHForTokens(min_amount_out, [weth_address, usdc_address],

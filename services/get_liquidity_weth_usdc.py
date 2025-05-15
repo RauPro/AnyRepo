@@ -40,7 +40,6 @@ def max_input_for_slippage(reserve_in: float,
     for _ in range(iters):
         mid = (lo + hi) / 2
         _, _, _, impact = simulate_swap(reserve_in, reserve_out, mid, fee)
-        print(impact)
         if impact <= tol:
             lo = mid
         else:

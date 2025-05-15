@@ -2,11 +2,72 @@ import os
 import time
 import json
 from config import ACCOUNT
-from services.get_liquidity_weth_usdc import get_liquidity_and_price, simulate_swap, max_input_for_slippage, \
-    simulate_front_run_profit
+from services.get_liquidity_weth_usdc import get_liquidity_and_price
 
 SLIPPAGE_TOLERANCE = 0.005
 weth_decimals = 18
+
+
+def simulate_front_run_profit(reserve_usdc: float,
+                              reserve_weth: float,
+                              victim_amount_usdc: float,
+                              mev_amount_usdc: float,
+                              fee: float = 0.003,
+                              fee_percentage: float = 0.003):
+    mev_weth, price_before, _, _ = simulate_swap(
+        reserve_usdc, reserve_weth, mev_amount_usdc, fee
+    )
+    usdc_per_weth_before = 1.0 / price_before
+    in_with_fee = mev_amount_usdc * (1 - fee)
+    r0 = reserve_usdc + in_with_fee
+    r1 = reserve_weth - mev_weth
+    _, _, price_after1, _ = simulate_swap(
+        r0, r1, victim_amount_usdc, fee
+    )
+    usdc_per_weth_after1 = 1.0 / price_after1
+    profit_usdc = mev_weth * (usdc_per_weth_after1 - usdc_per_weth_before)
+    fee_percentage /= 100
+    net_profit_usdc = profit_usdc * (1 - fee_percentage)
+    return net_profit_usdc / 10 ** 18
+
+def simulate_swap(reserve_in: float,
+                  reserve_out: float,
+                  amount_in: float,
+                  fee: float = 0.003):
+    """
+    UniswapV2 constant-product swap:
+      input:  amount_in  (WETH)
+      reserves: reserve_in (WETH), reserve_out (USDC)
+      fee: 0.003 (0.3%)
+
+    returns: (amount_out, price_before, price_after, price_impact)
+    """
+    amount_in_with_fee = amount_in * (1 - fee)
+    amount_out = (amount_in_with_fee * reserve_out) / (reserve_in + amount_in_with_fee)
+    price_before = reserve_out / reserve_in
+    price_after  = (reserve_out - amount_out) / (reserve_in + amount_in_with_fee)
+    price_impact = (price_before - price_after) / price_before
+    return amount_out, price_before, price_after, price_impact
+
+def max_input_for_slippage(reserve_in: float,
+                           reserve_out: float,
+                           tol: float = 0.0005,
+                           fee: float = 0.003,
+                           max_fraction: float = 0.5,
+                           iters: int = 15):
+    """
+    Binary-search the largest amount_in (≤ max_fraction * reserve_in)
+    whose price_impact ≤ tol.
+    """
+    lo, hi = 0.0, reserve_in * max_fraction
+    for _ in range(iters):
+        mid = (lo + hi) / 2
+        _, _, _, impact = simulate_swap(reserve_in, reserve_out, mid, fee)
+        if impact <= tol:
+            lo = mid
+        else:
+            hi = mid
+    return lo
 
 def slippage_trigger(web3_http, router, transaction):
     fn_obj, params = router["contract"].decode_function_input(transaction.input)
@@ -76,3 +137,4 @@ def slippage_trigger(web3_http, router, transaction):
         #print("🚀 Front-run sent:", sent.hex())
     except Exception as e:
         print("❌ Error executing transaction:", str(e))
+

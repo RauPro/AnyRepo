@@ -3,7 +3,7 @@ import time
 from eth_utils import to_hex
 from services import establish_quicknode_websocket_connection
 from utils import get_transaction_gas_price, is_uniswap_router_transaction
-from core.slippage import slippage
+from core.slippage import slippage_trigger
 
 
 async def track_mempool(
@@ -50,14 +50,13 @@ async def track_mempool(
                 except Exception:
                     continue
             if transaction and is_uniswap_router_transaction(transaction):
+
+
                 print(
                     f"👁️  Swap seen: {to_hex(transaction_hash)} with gas price {get_transaction_gas_price(transaction)}"
                 )
-
-                slippage(web3_http, router, transaction)
-
+                slippage_trigger(web3_http, router, transaction)
                 swaps.append(transaction)
-
                 if len(swaps) >= max_swaps:
                     break
 

@@ -66,28 +66,24 @@ def simulate_front_run_profit(reserve_usdc: float,
     profit_usdc = mev_weth * (usdc_per_weth_after1 - usdc_per_weth_before)
     return profit_usdc / 10**18
 
-def get_liquidity_and_slippage(web3,
-                               weth_address,
-                               usdc_address,
-                               usdc: float,
-                               slippage_tol: float = 0.005):
-    FACTORY = os.getenv("FACTORY_V2")
-    factory = web3.eth.contract(FACTORY,
-                                abi=json.load(open("abi/UniswapV2Factory.json", "r"))["abi"])
+def get_pool_reserves(web3, pair_address: str):
+    """
+    Fetch raw reserves (USDC, WETH) from on-chain UniswapV2Pair.
+    Returns ints (reserve_usdc, reserve_weth).
+    """
+    abi = json.load(open("abi/UniswapV2Pair.json"))["abi"]
+    contract = web3.eth.contract(address=web3.to_checksum_address(pair_address), abi=abi)
+    reserve_usdc, reserve_weth, _ = contract.functions.getReserves().call()
+    return reserve_usdc, reserve_weth
+
+
+def get_liquidity_and_price(web3,
+                            pair_token):
+    #FACTORY = os.getenv("FACTORY_V2")
+    #factory = web3.eth.contract(FACTORY, abi=json.load(open("abi/UniswapV2Factory.json", "r"))["abi"])
     #PAIR_POOL = factory.functions.getPair(weth_address, usdc_address).call() this should be used in real env
-    PAIR_POOL = os.getenv("USDC_WETH_POOL")
-    pair = web3.to_checksum_address(PAIR_POOL)
-    contract = web3.eth.contract(address=pair, abi=json.load(open("abi/UniswapV2Pair.json", "r"))["abi"])
-    reserves = contract.functions.getReserves().call()
-    reserve_usdc = reserves[0]
-    reserve_weth = reserves[1]
-    out_weth, price_before, price_after, impact = simulate_swap(
-        reserve_usdc, reserve_weth, usdc
-    )
-    max_usdc = max_input_for_slippage(
-        reserve_weth, reserve_usdc, tol=slippage_tol
-    )
-    max_weth = simulate_swap(reserve_usdc, reserve_weth, max_usdc)[0]
+    reserve_usdc, reserve_weth = get_pool_reserves(web3, pair_token)
+    usdc_address = web3.to_checksum_address(os.getenv("USDC_TOKEN"))
     usdc_decimals = 18
     weth_decimals = 18
     price_weth_in_usdc = (reserve_usdc / 10 ** usdc_decimals) / (reserve_weth / 10 ** weth_decimals)
@@ -98,26 +94,10 @@ def get_liquidity_and_slippage(web3,
     print("\n📈  Price Before Swap")
     print(f"   • 1 WETH  ≃ {price_weth_in_usdc:.5f} USDC")
     print(f"   • 1 USDC  ≃ {price_usdc_in_weth:.5f} WETH")
-    print(f"   • Market  ≃ {price_weth_in_usdc * mainnet_price_usdc:.5f} US")
-    print(f"\n🔄  Simulating swap of {usdc / 10 ** usdc_decimals:.5f} USDC →")
-    print(f"   • You get      ≃ {out_weth / 10 ** weth_decimals:.5f} WETH")
-    print(f"   • New price    ≃ {price_after:.5f} WETH/USDC")
-    print(f"   • Price impact ≃ {impact * 100:.5f}%")
+    print(f"   • Market  ≃ ${price_weth_in_usdc * mainnet_price_usdc:.5f} US")
+    return reserve_usdc, reserve_weth, usdc_decimals, reserve_weth, price_weth_in_usdc, price_usdc_in_weth, price_weth_in_usdc * mainnet_price_usdc, mainnet_price_usdc
 
-    print(f"   • Equivalent   ≃ ${((1  / price_after)  * mainnet_price_usdc):.5f} USD")
 
-    print(f"\n🔒  To keep slippage ≤ {slippage_tol * 100:.5f}%:")
-    print(f"   • Max input    ≃ {max_usdc / 10 ** usdc_decimals:.5f} USDC")
-    print(f"   • You’d get    ≃ {max_weth / 10 ** weth_decimals:.5f} WETH")
-    print(f"   • Price moves  ≃ {price_before:.15f} → "
-          f"{simulate_swap(reserve_usdc, reserve_weth, max_usdc)[2]:.15f} WETH/USDC")
-    profit = simulate_front_run_profit(
-        reserve_usdc,
-        reserve_weth,
-        usdc,
-        max_usdc
-    )
-    print(f"💰 Estimated MEV profit: {profit:.10f} USDC")
 
 
 def fetch_token_data(usdc_address):

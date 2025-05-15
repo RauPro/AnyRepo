@@ -1,12 +1,14 @@
+import os
 import time
 import json
 from config import ACCOUNT
-
+from services.get_liquidity_weth_usdc import get_liquidity_and_price, simulate_swap, max_input_for_slippage, \
+    simulate_front_run_profit
 
 SLIPPAGE_TOLERANCE = 0.005
+weth_decimals = 18
 
-
-def slippage(web3_http, router, transaction):
+def slippage_trigger(web3_http, router, transaction):
     fn_obj, params = router["contract"].decode_function_input(transaction.input)
     min_amount_out = params.get("amountOutMin", "Not specified")
     path = params.get("path", [])
@@ -40,28 +42,34 @@ def slippage(web3_http, router, transaction):
         print(f"{end} {label}: {val}")
 
     try:
-        base_price = web3_http.eth.gas_price
-        new_price = int(base_price * 1.10)
-        transaction_build = (
-            router["contract"]
-            .functions.swapExactTokensForTokens(
-                amount_in, min_out, path, ACCOUNT.address, int(time.time()) + 60
-            )
-            .build_transaction(
-                {
-                    "from": ACCOUNT.address,
-                    "gas": 300_000,
-                    "gasPrice": new_price,
-                    "nonce": web3_http.eth.get_transaction_count(
-                        ACCOUNT.address, block_identifier="pending"
-                    ),
-                }
-            )
+        pair_token = web3_http.to_checksum_address(os.getenv("USDC_WETH_POOL"))
+        reserve_usdc, reserve_weth, usdc_decimals, reserve_weth, price_weth_in_usdc, price_usdc_in_weth, market_price, mainnet_price_usdc = get_liquidity_and_price(web3_http, pair_token)
+        amount_in_victim = transaction["value"]
+        out_weth, price_before, price_after, impact = simulate_swap(
+            reserve_usdc, reserve_weth, amount_in_victim
         )
-
-        signed = ACCOUNT.sign_transaction(transaction_build)
-        sent = web3_http.eth.send_raw_transaction(signed.raw_transaction)
-
-        print("🚀 Front-run sent:", sent.hex())
+        print(f"\n🔄  Simulating swap of {amount_in_victim / 10 ** usdc_decimals:.5f} USDC →")
+        print(f"   • You get      ≃ {out_weth / 10 ** weth_decimals:.5f} WETH")
+        print(f"   • New price    ≃ {price_after:.5f} WETH/USDC")
+        print(f"   • Price impact ≃ {impact * 100:.5f}%")
+        print(f"   • Equivalent Market   ≃ ${((1 / price_after) * mainnet_price_usdc):.5f} USD")
+        slippage_tol: float = 0.015
+        max_usdc_mev = max_input_for_slippage(
+            reserve_weth, reserve_usdc, tol=slippage_tol
+        )
+        max_weth = simulate_swap(reserve_usdc, reserve_weth, max_usdc_mev)[0]
+        print(f"\n🔒  To keep slippage ≤ {slippage_tol * 100:.5f}%:")
+        print(f"   • Max input    ≃ {max_usdc_mev / 10 ** usdc_decimals:.5f} USDC")
+        print(f"   • You’d get    ≃ {max_weth / 10 ** weth_decimals:.5f} WETH")
+        print(f"   • Price moves  ≃ {price_before:.15f} → "
+              f"{simulate_swap(reserve_usdc, reserve_weth, max_usdc_mev)[2]:.15f} WETH/USDC")
+        profit = simulate_front_run_profit(
+            reserve_usdc,
+            reserve_weth,
+            amount_in_victim,
+            max_usdc_mev
+        )
+        print(f"💰 Estimated MEV profit: {profit:.10f} USDC")
+        #print("🚀 Front-run sent:", sent.hex())
     except Exception as e:
         print("❌ Error executing transaction:", str(e))

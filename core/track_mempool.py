@@ -50,13 +50,13 @@ async def track_mempool(
                 except Exception:
                     continue
             if transaction and is_uniswap_router_transaction(transaction):
-                slippage_trigger(web3_http, router, transaction)
-                swaps.append(transaction)
+
 
                 print(
                     f"👁️  Swap seen: {to_hex(transaction_hash)} with gas price {get_transaction_gas_price(transaction)}"
                 )
-
+                slippage_trigger(web3_http, router, transaction)
+                swaps.append(transaction)
                 if len(swaps) >= max_swaps:
                     break
 

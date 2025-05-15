@@ -50,7 +50,8 @@ def simulate_front_run_profit(reserve_usdc: float,
                               reserve_weth: float,
                               victim_amount_usdc: float,
                               mev_amount_usdc: float,
-                              fee: float = 0.003):
+                              fee: float = 0.003,
+                              fee_percentage: float = 0.003):
     mev_weth, price_before, _, _ = simulate_swap(
         reserve_usdc, reserve_weth, mev_amount_usdc, fee
     )
@@ -63,7 +64,9 @@ def simulate_front_run_profit(reserve_usdc: float,
     )
     usdc_per_weth_after1 = 1.0 / price_after1
     profit_usdc = mev_weth * (usdc_per_weth_after1 - usdc_per_weth_before)
-    return profit_usdc / 10**18
+    fee_percentage /= 100
+    net_profit_usdc = profit_usdc * (1 - fee_percentage)
+    return net_profit_usdc / 10 ** 18
 
 def get_pool_reserves(web3, pair_address: str):
     """

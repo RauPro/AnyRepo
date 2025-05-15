@@ -25,6 +25,7 @@ def slippage_trigger(web3_http, router, transaction):
     gas_price_gwei = web3_http.from_wei(eff_price_wei, "gwei")
     gas_price_eth = web3_http.from_wei(eff_price_wei, "ether")
     status_label = "[CANCELLED]" if receipt["status"] == 0 else ""
+    fee_pct_value = (float(fee_eth) / float(value_eth) * 100) if value_eth > 0 else 0
     details = [
         ("Amount In", transaction["value"]),
         ("Min Amount Out", min_amount_out),
@@ -34,7 +35,8 @@ def slippage_trigger(web3_http, router, transaction):
         ("Account Balance", balance),
         ("Value", f"{value_eth} ETH {status_label}"),
         ("Transaction Fee", f"{fee_eth} ETH"),
-        ("Gas Price", f"{gas_price_gwei} Gwei ({gas_price_eth} ETH)")
+        ("Gas Price", f"{gas_price_gwei} Gwei ({gas_price_eth} ETH)"),
+        ("Fee % of value", f"{fee_pct_value:.4f}%"),
     ]
     print("🔄 Swap Details")
     for i, (label, val) in enumerate(details):
@@ -67,7 +69,8 @@ def slippage_trigger(web3_http, router, transaction):
             reserve_usdc,
             reserve_weth,
             amount_in_victim,
-            max_usdc_mev
+            max_usdc_mev,
+            fee_percentage=fee_pct_value
         )
         print(f"💰 Estimated MEV profit: {profit:.10f} USDC")
         #print("🚀 Front-run sent:", sent.hex())

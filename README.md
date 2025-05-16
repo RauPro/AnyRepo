@@ -9,7 +9,7 @@
 
 ## Overview
 The **Uniswap MEV Bot** is a Python-based toolkit that 👀 **watches the Sepolia mempool** through a QuickNode WebSocket, decodes each pending Uniswap V2 swap, simulates its price impact with the constant-product invariant *x × y = k*, and projects potential sandwich-attack profit.  
-When the projected gain beats a user-defined threshold, the bot (optionally) submits an on-chain test swap and writes all detected opportunities to `output/swaps.json` while printing a gas-sorted table in real time. :contentReference[oaicite:0]{index=0}
+When the projected gain beats a user-defined threshold, the bot (optionally) submits an on-chain test swap and writes all detected opportunities to `output/swaps.json` while printing a gas-sorted table in real time.
 
 ---
 

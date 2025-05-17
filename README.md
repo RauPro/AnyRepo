@@ -1,11 +1,9 @@
-# AnyRepo
+# 🦄 MEV Bot
+## Collaborators
 
 - Raul Ernesto Guillen Hernandez
 - Fernando Daniel González Batarsé
 - Aleksandr Zvonarev
-
-
-# 🦄 MEV Bot
 
 ## Overview
 The **Uniswap MEV Bot** is a Python-based toolkit that 👀 **watches the Sepolia mempool** through a QuickNode WebSocket, decodes each pending Uniswap V2 swap, simulates its price impact with the constant-product invariant *x × y = k*, and projects potential sandwich-attack profit.  

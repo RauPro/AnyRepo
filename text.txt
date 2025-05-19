@@ -1,0 +1,242 @@
+
+## Home
+
+**Purpose:** Introduce the project and outline its objectives.
+Describe that this tool monitors the Ethereum mempool for Uniswap V2 swap transactions, analyzes slippage and MEV opportunities, optionally executes test swaps, and logs the highest-gas-price transactions.
+
+---
+
+## Setup
+
+### Prerequisites
+
+1. **Python ≥ 3.8**
+2. **Git**
+3. **pip** (Python package manager)
+
+### Installation Steps
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/your-username/uniswap-mev-bot.git
+   cd uniswap-mev-bot
+   ```
+2. **Install dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Create and populate `.env` file**
+   Copy `.env.example` to `.env` and fill in values (see [[Configuration](https://chatgpt.com/g/g-p-6825a38191dc819199ae8681b114b2ca-wiki-documentation-mev-bot/c/6825a4e5-1914-8010-bbb6-0a12229c84f5#configuration)](#configuration)).
+4. **ABI setup**
+   Ensure the `abi/` directory contains:
+
+   * `UniswapV2Router02.json`
+   * `UniswapV2Pair.json`
+   * `UniswapV2Factory.json`
+5. **Run the bot**
+
+   ```bash
+   python main.py
+   ```
+6. **View output**
+
+   * Console logs show slippage triggers and test swaps.
+   * `output/swaps.json` contains captured transactions.
+
+---
+
+## Configuration
+
+Populate the following environment variables in your `.env` file:
+
+| Variable              | Description                                                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `ACCOUNT_PRIVATE_KEY` | Your Ethereum account’s private key for signing transactions.                                                                  |
+| `QUICK_NODE_WSS_URL`  | [QuickNode](https://www.quicknode.com/guides/ethereum-development/getting-started/connecting-to-blockchains/how-to-connect-to-the-ethereum-network-using-python-with-web3py) WebSocket endpoint (see QuickNode docs) ([QuickNode][1]).                                                            |
+| `QUICK_NODE_HTTP_URL` | QuickNode HTTP/S endpoint.                                                                                                     |
+| `CHAIN_ID_NUMBER`     | Chain ID (e.g., Sepolia = 11155111).                                                                                           |
+| `ROUTER_ADDRESS`      | Uniswap V2 Router02 contract address.                                                                                          |
+| `USDC_TOKEN`          | USDC token contract address on the target network.                                                                             |
+| `WETH_TOKEN`          | WETH token contract address.                                                                                                   |
+| `GECKOTERMINAL_API`   | Base URL for GeckoTerminal’s Public API (e.g., `https://api.geckoterminal.com/api/v2/networks`). ([[GeckoTerminal API Docs](https://apiguide.geckoterminal.com/)][2]) |
+| `NETWORK`             | Network identifier used by GeckoTerminal (e.g., `sepolia-testnet`).                                                            |
+| `FACTORYV2`           | Uniswap V2 Factory contract address.                                                                                           |
+| `USDC_WETH_POOL`      | Pre-deployed Uniswap V2 pool address for USDC/WETH.                                                                            |
+
+The `settings.py` script loads these variables, verifies their presence, and prints a summary table using PrettyTable ([[GeeksforGeeks](https://www.geeksforgeeks.org/creating-tables-with-prettytable-library-python/)][3]).
+
+---
+
+## Architecture & Flow
+
+1. **HTTP & WebSocket Connections**
+
+   * `establish_quicknode_http_connection.py` creates a `Web3(HTTPProvider)` client ([[Web3.py](https://web3py.readthedocs.io/en/v5/providers.html)][4]).
+   * `establish_quicknode_websocket_connection.py` establishes an `AsyncWeb3(WebSocketProvider)` session for real-time mempool monitoring ([[Web3.py](https://web3py.readthedocs.io/en/stable/providers.html)][5]).
+2. **Router Initialization**
+
+   * `initialize_uniswap_router.py` loads the Uniswap V2 Router ABI and instantiates the contract at `ROUTER_CHECKSUM_ADDRESS`.
+3. **Mempool Tracking**
+
+   * `track_mempool.py` subscribes to pending transactions, filters for Uniswap swaps using selector matching, and triggers slippage analysis.
+4. **Slippage Analysis & MEV Simulation**
+
+   * `slippage.py` decodes transaction inputs, prints swap details, simulates price movement, computes price impact and MEV profit using constant-product formulas.
+5. **Test Swap Execution**
+
+   * After capturing initial swaps, `main.py` issues up to 3 randomized test swaps via `execute_swap.py`, constructing and signing `swapExactETHForTokens` transactions.
+6. **Results Aggregation**
+
+   * High-gas-price swaps are sorted and displayed in a PrettyTable, then saved to `output/swaps.json`.
+
+---
+
+## Services
+
+### `establish_quicknode_http_connection.py`
+
+* **Function:** `establish_quicknode_http_connection()`
+* **Returns:** `Web3` instance connected via HTTPProvider ([[Web3.py](https://web3py.readthedocs.io/en/v5/providers.html)][4]).
+
+### `establish_quicknode_websocket_connection.py`
+
+* **Function:** `establish_quicknode_websocket_connection()`
+* **Returns:** `AsyncWeb3` instance with a `socket` interface for subscriptions ([[Web3.py](https://web3py.readthedocs.io/en/stable/providers.html)][5]).
+
+### `initialize_uniswap_router.py`
+
+* **Function:** `initialize_uniswap_router(web3_instance)`
+* **Loads:** `UniswapV2Router02.json` ABI and binds to address in `config.ROUTER_CHECKSUM_ADDRESS`.
+
+### `get_liquidity_weth_usdc.py`
+
+* **Functions:**
+
+  * `get_pool_reserves(web3, pair_address)`: calls `getReserves()` on a Uniswap V2 pair contract.
+  * `get_liquidity_and_price(web3, pair_token)`: computes:
+
+    * `reserve_usdc`, `reserve_weth` (raw ints)
+    * `price_weth_in_usdc = (reserve_usdc/10**18)/(reserve_weth/10**18)` ([[docs.uniswap.org](https://docs.uniswap.org/contracts/v2/concepts/protocol-overview/how-uniswap-works)][6])
+    * `price_usdc_in_weth = 1/price_weth_in_usdc`
+    * Fetches mainnet USDC price via GeckoTerminal.
+
+---
+
+## Core Modules
+
+### `slippage.py`
+
+* **`simulate_swap(reserve_in, reserve_out, amount_in, fee=0.003)`**
+
+  * **Formula:**
+
+    ```python
+    amount_in_with_fee = amount_in * (1 - fee)
+    amount_out = (amount_in_with_fee * reserve_out) / (reserve_in + amount_in_with_fee)
+    price_before = reserve_out / reserve_in
+    price_after  = (reserve_out - amount_out) / (reserve_in + amount_in_with_fee)
+    price_impact = (price_before - price_after) / price_before
+    ```
+  * **References:**
+
+    * Constant-product invariant `x * y = k` ([[docs.uniswap.org](https://docs.uniswap.org/contracts/v2/concepts/protocol-overview/how-uniswap-works)][6]), ([[Medium](https://medium.com/%40tomarpari90/constant-product-automated-market-maker-everything-you-need-to-know-5bfeb0251ef2)][7])
+    * Price impact definition ([[support.uniswap.org](https://support.uniswap.org/hc/en-us/articles/8671539602317-What-is-price-impact)][8])
+
+* **`simulate_front_run_profit(reserve_usdc, reserve_weth, victim_amount_usdc, mev_amount_usdc, fee, fee_percentage)`**
+
+  * Executes two `simulate_swap` calls to model a front-run and victim trade, then computes net profit after fees.
+
+* **`max_input_for_slippage(reserve_in, reserve_out, tol, fee, max_fraction, iters)`**
+
+  * Binary search to find maximum `amount_in` such that `price_impact ≤ tol`.
+
+* **`slippage_trigger(web3_http, router, transaction)`**
+
+  * Decodes swap params (`decode_function_input`) ([[Web3.py](https://web3py.readthedocs.io/en/v5/contracts.html)][9])
+  * Prints swap details and calls `simulate_swap`, `max_input_for_slippage`, and `simulate_front_run_profit`.
+
+---
+
+## Utilities
+
+### `is_uniswap_router_transaction.py`
+
+* **Function:** `is_uniswap_router_transaction(transaction)`
+* **Logic:** Checks `transaction["to"]` matches `ROUTER_CHECKSUM_ADDRESS` and `input[:4]` in `SWAP_SELECTORS`.
+
+### `get_transaction_gas_price.py`
+
+* **Function:** `get_transaction_gas_price(transaction)`
+* **Returns:** `transaction.get("gasPrice") or transaction["maxFeePerGas"]` ([[eth-utils.readthedocs.io](https://eth-utils.readthedocs.io/en/stable/utilities.html)][10]).
+
+---
+
+## Scripts
+
+### `main.py`
+
+* Initializes HTTP/WebSocket connections and router.
+* Spawns `track_mempool` listener (up to 20 swaps or 60 s).
+* After subscription ready, executes 3 random test swaps via `execute_swap`.
+* Sorts captured swaps by gas price and displays them in a PrettyTable ([[GeeksforGeeks](https://www.geeksforgeeks.org/creating-tables-with-prettytable-library-python/)][3]).
+* Saves results to `output/swaps.json`.
+
+### `execute_swap.py`
+
+* **Function:** `execute_swap(web3, router, amount_eth)`
+* **Flow:**
+
+  1. Compute `deadline = now + 900 s`.
+  2. Fetch `nonce` and addresses (`WETH_TOKEN`, `USDC_TOKEN`).
+  3. Calculate `amounts_out = router.functions.getAmountsOut(...)` ([[docs.uniswap.org](https://docs.uniswap.org/contracts/v2/reference/smart-contracts/router-02)][11]).
+  4. Determine `min_amount_out = amounts_out[-1] * 0.99`.
+  5. Estimate gas, set `maxPriorityFeePerGas = 2 gwei`, `maxFeePerGas = baseFee + tip`.
+  6. Build and sign `swapExactETHForTokens` txn, then `send_raw_transaction`.
+
+### `track_mempool.py`
+
+* Subscribes to `newPendingTransactions` via WebSocket.
+* For each hash, retrieves full `transaction` and filters via `is_uniswap_router_transaction`.
+* Calls `slippage_trigger` on matches and collects them.
+
+---
+
+## Formulas & References
+
+| Concept              | Formula                                                                                               | Reference                                                                                                                                           |
+|----------------------|-------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Constant Product** | `x * y = k`                                                                                           | Uniswap V2 Invariant ([docs.uniswap.org][1])                                                                                |
+| **Amount Out**       | `(amount_in_with_fee * reserve_out) / (reserve_in + amount_in_with_fee)`                              | Uniswap Router Logic ([Medium][2])                                                                                        |
+| **Price Before**     | `price_before = reserve_out / reserve_in`                                                             | `simulate_swap` code                                                                                                                                |
+| **Price After**      | `price_after = (reserve_out - amount_out) / (reserve_in + amount_in_with_fee)`                        | `simulate_swap` code                                                                                                                                |
+| **Price Impact**     | `(price_before - price_after) / price_before`                                                         | Uniswap Support ([support.uniswap.org][3])                                                                                |
+| **Slippage Tolerance** | Difference between expected and executed price (e.g., 0.5% by default)                                | Uniswap Support ([support.uniswap.org][4])                                                                               |
+| **Front-Run Profit** | `profit_usdc = mev_weth * (usdc_per_weth_after - usdc_per_weth_before) * (1 - fee_percentage)`         | Custom MEV Logic                                                                                                                                     |
+
+---
+
+## Contributing
+
+1. Fork the repository and create your branch (`git checkout -b feature/XYZ`).
+2. Commit your changes (`git commit -m 'Add feature XYZ'`).
+3. Push to the branch (`git push origin feature/XYZ`).
+4. Open a Pull Request.
+
+Please adhere to existing coding conventions, include unit tests for new functionality, and update this Wiki if you introduce new modules or variables.
+
+---
+
+[1]: https://www.quicknode.com/guides/ethereum-development/getting-started/connecting-to-blockchains/how-to-connect-to-the-ethereum-network-using-python-with-web3py "How to connect to the Ethereum network using Python with Web3.py"
+[2]: https://apiguide.geckoterminal.com/ "GeckoTerminal API Docs: Introduction | Introduction"
+[3]: https://www.geeksforgeeks.org/creating-tables-with-prettytable-library-python/ "Creating Tables with PrettyTable Library – Python | GeeksforGeeks"
+[4]: https://web3py.readthedocs.io/en/v5/providers.html "Providers — Web3.py 5.31.4 documentation"
+[5]: https://web3py.readthedocs.io/en/stable/providers.html "Providers — web3.py 7.11.0 documentation"
+[6]: https://docs.uniswap.org/contracts/v2/concepts/protocol-overview/how-uniswap-works "How Uniswap works"
+[7]: https://medium.com/%40tomarpari90/constant-product-automated-market-maker-everything-you-need-to-know-5bfeb0251ef2 "Constant Product Automated Market Maker: Everything you need to ..."
+[8]: https://support.uniswap.org/hc/en-us/articles/8671539602317-What-is-price-impact "What is price impact? - Uniswap Labs"
+[9]: https://web3py.readthedocs.io/en/v5/contracts.html "Contracts — Web3.py 5.31.4 documentation"
+[10]: https://eth-utils.readthedocs.io/en/stable/utilities.html "eth_utils - eth-utils - Read the Docs"
+[11]: https://docs.uniswap.org/contracts/v2/reference/smart-contracts/router-02 "Router02 - Uniswap Docs"
+[12]: https://support.uniswap.org/hc/en-us/articles/8643879653261-How-to-change-slippage-on-the-Uniswap-Web-app "How to change slippage on the Uniswap Web app"

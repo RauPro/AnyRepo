@@ -33,7 +33,7 @@ def execute_swap(web3, router, amount_eth):
     base_fee = latest["baseFeePerGas"]
     tip = web3.to_wei(2, "gwei")
     max_fee = base_fee + tip
-    tx = (router["contract"].functions.swapExactETHForTokens(min_amount_out, [router["address"], router["address"]],
+    tx = (router["contract"].functions.swapExactETHForTokens(min_amount_out, [weth_address, usdc_address],
         ACCOUNT.address, deadline).build_transaction({
     "from":                   ACCOUNT.address,
     "value":                  amount_in_wei,
